@@ -17,7 +17,7 @@ struct Stack {
   uint8_t height; // Height of the stack
   Piece top; // Type of the top piece
 
-  CUDA_CALLABLE inline Stack() : owners(0), top(Piece::FLAT), height(0) {}
+  CUDA_CALLABLE inline Stack() : owners(0), height(0), top(Piece::FLAT) {}
 
   CUDA_CALLABLE inline uint8_t pop(int n) {
     uint8_t o = owners&~((-1)<<n);
@@ -35,7 +35,8 @@ struct Stack {
 };
 
 template<uint8_t SIZE>
-struct Board {
+class Board {
+public:
   Stack board[SIZE*SIZE];
 
   struct {
@@ -100,8 +101,8 @@ struct Board {
   CUDA_CALLABLE Board() :
     white({ num_flats<SIZE>::value, num_caps<SIZE>::value }),
     black({ num_flats<SIZE>::value, num_caps<SIZE>::value }),
-    round(1),
-    curPlayer(WHITE)
+    curPlayer(WHITE),
+    round(1)
   {}
 
   // Check if the given player has a road on board
