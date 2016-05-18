@@ -36,7 +36,12 @@ int main(int argc, char** argv) {
   header << "#include <type_traits>\n\n";
   source << "#include \"table.hpp\"\n";
   header << "#include \"util.hpp\"\n\n";
-
+  header << "/**\n";
+  header << " * THIS IS A GENERATED FILE, DO NOT MODIFY\n";
+  header << " */\n";
+  source << "/**\n";
+  source << " * THIS IS A GENERATED FILE, DO NOT MODIFY\n";
+  source << " */\n";
   header << "extern const int binomial_coeff_table[];\n";
   header << "#if defined(__CUDACC__)\n";
   header << "extern __constant__ int binomial_coeff_table_dev[];\n";
@@ -168,9 +173,9 @@ int main(int argc, char** argv) {
   header << "#if defined(__CUDACC__)\n";
   header << "extern __constant__ int table_idxs_dev[];\n";
   header << "extern __constant__ char table_values_dev[];\n";
-  header << "#endif\n";
+  header << "#endif\n\n";
 
-  header << "\n struct Table {\n";
+  header << "class Table {\n";
   header << "public:\n";
   header << "  class Index { \n";
   header << "  private:\n";
