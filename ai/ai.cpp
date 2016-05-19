@@ -30,30 +30,11 @@ int main() {
 
   std::vector<Move<3>> moves;
 
-  Move<3> m;
-  ptn::from_str("b2", m);
-  b.valid(m);
-  b.execute(m);
-
-  ptn::from_str("a1", m);
-  b.valid(m);
-  b.execute(m);
-
-  ptn::from_str("a2", m);
-  b.valid(m);
-  b.execute(m);
-
-  std::cout << tps::to_str(b) << std::endl;
-
-  int best = ab.search(b, m, eval{}, depth);
-  std::cout << "Best " << best;
-
-  /*
   std::string input;
   while(true) {
     Move<3> move;
     Board<3> b2 = b;
-    int best =  alphabeta(b2, WHITE, move, depth, -501, 501);
+    int best = ab.search(b2, move, eval{}, depth);
     if(!(b2 == b)) {
       std::cout << "Error in undoing of moves:" << std::endl;
       std::cout << "original: " << tps::to_str(b) << std::endl;
@@ -99,5 +80,4 @@ int main() {
       std::cout << tps::to_str(b) << std::endl;
     }
   }
-  */
 }
