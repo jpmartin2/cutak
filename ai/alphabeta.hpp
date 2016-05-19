@@ -21,14 +21,10 @@ public:
     } else if(state.curPlayer == player) {
       typename Board<SIZE>::Map map(state);
       state.forEachMove(map, [this, &eval, &bestMove, &state, depth, &alpha, &beta](Move<SIZE> m) {
-        Board<SIZE> b = state;
         state.execute(m);
         Move<SIZE> move;
         int c = search(state, move, eval, depth-1, alpha, beta);
         state.undo(m);
-        if(state != b) {
-          std::cout << "ERROR! state not equal" << std::endl;
-        }
 
         if(c > alpha) {
           alpha = c;
@@ -43,14 +39,10 @@ public:
     } else {
       typename Board<SIZE>::Map map(state);
       state.forEachMove(map, [this, &eval, &bestMove, &state, depth, &alpha, &beta](Move<SIZE> m) {
-        Board<SIZE> b = state;
         state.execute(m);
         Move<SIZE> move;
         int c = search(state, move, eval, depth-1, alpha, beta);
         state.undo(m);
-        if(state != b) {
-          std::cout << "ERROR! state not equal" << std::endl;
-        }
 
         if(c < beta) {
           beta = c;

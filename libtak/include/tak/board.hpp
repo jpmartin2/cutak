@@ -320,7 +320,7 @@ public:
     }
   }
 
-  CUDA_CALLABLE void execute(Move<SIZE> m) {
+  CUDA_CALLABLE void execute(Move<SIZE>& m) {
     switch(m.type()) {
     case Move<SIZE>::Type::MOVE:
       for(int n = m.range(); n > 0; n--) {
@@ -359,7 +359,7 @@ public:
     curPlayer = !curPlayer;
   }
 
-  CUDA_CALLABLE void undo(Move<SIZE> m) {
+  CUDA_CALLABLE void undo(Move<SIZE>& m) {
     curPlayer = !curPlayer;
     round -= curPlayer == BLACK;
     switch(m.type()) {
