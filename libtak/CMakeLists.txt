@@ -6,15 +6,15 @@ add_executable(gen gen.cpp)
 
 file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 
-add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/table.cu ${PROJECT_BINARY_DIR}/include/table.hpp
+add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/table.cpp ${PROJECT_BINARY_DIR}/include/table.hpp
                    COMMAND gen
                    DEPENDS gen
                    COMMENT "Generating table.cu")
 
 file(GLOB_RECURSE HEADERS include/*.hpp)
 file(GLOB_RECURSE GEN_HEADERS ${PROJECT_BINARY_DIR}/include/*.hpp)
-#set(SOURCE src/net/message.cpp)
-set(GEN_SOURCE ${PROJECT_BINARY_DIR}/table.cu)
+set(SOURCE src/tak/net/message.cpp src/tak/dynamic.cpp)
+set(GEN_SOURCE ${PROJECT_BINARY_DIR}/table.cpp)
 
 source_group("Header Files" FILES ${HEADERS})
 source_group("Generated Files" FILES ${GEN_HEADERS} ${GEN_SOURCE})
@@ -24,7 +24,7 @@ get_property(UTIL_INCLUDES TARGET util PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${UTIL_INCLUDES})
 
 include_directories(${PROJECT_BINARY_DIR}/include)
-cuda_add_library(tak STATIC ${SOURCE} ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS})
+add_library(tak STATIC ${SOURCE} ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS})
 target_link_libraries(tak util)
 target_include_directories(tak PUBLIC ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include ${UTIL_INCLUDES})
 

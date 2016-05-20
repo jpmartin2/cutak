@@ -1,10 +1,12 @@
 #pragma once
 
-#include "game.hpp"
-#include "move.hpp"
 #include <regex>
 #include <string>
 #include <algorithm>
+
+#include "game.hpp"
+#include "move.hpp"
+#include "dynamic.hpp"
 
 namespace ptn {
 
@@ -15,6 +17,16 @@ std::string to_str(typename Move<SIZE>::Dir dir) {
   case Move<SIZE>::Dir::SOUTH: return "-";
   case Move<SIZE>::Dir::EAST: return ">";
   case Move<SIZE>::Dir::WEST: return "<";
+  default: return "?";
+  }
+}
+
+std::string to_str(DynamicMove::Dir dir) {
+  switch(dir) {
+  case DynamicMove::Dir::NORTH: return "+";
+  case DynamicMove::Dir::SOUTH: return "-";
+  case DynamicMove::Dir::EAST: return ">";
+  case DynamicMove::Dir::WEST: return "<";
   default: return "?";
   }
 }
@@ -54,6 +66,37 @@ std::string to_str(Move<SIZE> move) {
     m += to_str(move.pieceType());
     m.push_back('a'+move.idx()%SIZE);
     m.push_back('1'+move.idx()/SIZE);
+    return m;
+  default:
+    return "?";
+  }
+}
+
+std::string to_str(DynamicMove move) {
+  std::string m;
+  switch(move.type()) {
+  case DynamicMove::Type::MOVE: {
+    int x = 0;
+    for(int i = 1; i <= move.range(); i++) { 
+      x += move.slides(i);
+    }
+    if(x > 1) {
+      m.push_back('0'+x);
+    }
+    m.push_back('a'+move.x());
+    m.push_back('1'+move.y());
+    m += to_str(move.dir());
+    if(move.range() != 1) {
+      for(int i = 1; i <= move.range(); i++) { 
+        m.push_back('0'+move.slides(i));
+      }
+    }
+    return m;
+  }
+  case DynamicMove::Type::PLACE:
+    m += to_str(move.pieceType());
+    m.push_back('a'+move.x());
+    m.push_back('1'+move.y());
     return m;
   default:
     return "?";

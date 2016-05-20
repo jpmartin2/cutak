@@ -1,5 +1,8 @@
 #pragma once
 
+#include "util.hpp"
+#include "tak/tak.hpp"
+
 namespace tak {
 namespace net {
 
@@ -8,7 +11,10 @@ struct Seek {
   const std::string player;
   const int size;
   const int time;
-  const option<Color> color;
+  const util::option<Player> color;
+
+  inline Seek(int id, std::string player, int size, int time, util::option<Player> color) :
+    id(id), player(player), size(size), time(time), color(color) {}
 };
 
 bool operator==(Seek left, Seek right);
@@ -18,7 +24,7 @@ public:
   static ClientMsg client(std::string client_name);
   static ClientMsg login(std::string username, std::string password);
   static ClientMsg login_guest();
-  static ClientMsg seek(int size, int time, option<Color> color = option<Color>::None);
+  static ClientMsg seek(int size, int time, util::option<Player> player = util::option<Player>::None);
   static ClientMsg accept(int seek_id);
   static ClientMsg move(int game_id, DynamicMove move);
   static ClientMsg offer_draw(int game_id);
@@ -43,12 +49,9 @@ private:
 class ServerMsg {
 public:
   class Visitor {
-  private:
-    friend class ServerMsg;
-    void visit(ServerMsg& m);
   public:
     inline virtual void welcome_msg() {}
-    inline virtual void login_promt_msg() {}
+    inline virtual void login_prompt_msg() {}
     inline virtual void login_success_msg(std::string name) {}
     inline virtual void game_add_msg(
       int id, std::string player1, std::string player2,
@@ -56,7 +59,7 @@ public:
     ) {}
     // There's more information in this message, but it seems useless
     inline virtual void game_remove_msg(int id) {}
-    inline virtual void game_start_msg(int id, std::string player1, std::string player2, util::option<Color> color) {}
+    inline virtual void game_start_msg(int id, int size, std::string player1, std::string player2, Player player) {}
     inline virtual void move_msg(int id, DynamicMove move) {}
     inline virtual void time_msg(int id, int white_time, int black_time) {}
     inline virtual void game_over_msg(int id, GameStatus status) {}
@@ -84,9 +87,7 @@ public:
 
   ServerMsg(std::string msg);
 
-  void accept(visitor& v) {
-    v.visit(*this);
-  }
+  void handle(Visitor& v);
 private:
   std::string m;
 };

@@ -23,11 +23,13 @@ inline T max(T a, T b) { return std::max(a,b); }
 
 template<typename T>
 class option {
+public:
   static const option None;
-  operator bool() const { return valid; }
-  T operator*() { return t; }
+  explicit operator bool() const { return valid; }
+  T& operator*() { return t; }
   option& operator=(T val) { t = val; return *this; }
   option() : valid(false) {}
+  option(const option& other) : valid(other.valid) { if(other) t = other.t; }
 private:
   bool valid;
   T t;

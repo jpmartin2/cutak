@@ -405,9 +405,9 @@ CUDA_CALLABLE bool operator==(Board<SIZE>& left, Board<SIZE>& right) {
 }
 
 template<uint8_t SIZE>
-CUDA_CALLABLE bool operator!=(Board<SIZE>& left, Board<SIZE>& right) { return !(left == right); }
+inline CUDA_CALLABLE bool operator!=(Board<SIZE>& left, Board<SIZE>& right) { return !(left == right); }
 
-CUDA_CALLABLE bool operator==(Stack left, Stack right) {
+inline CUDA_CALLABLE bool operator==(Stack left, Stack right) {
   if(left.height != right.height) return false;
   if(left.height == 0) return true;
   uint64_t mask = ~((-1)<<left.height);
@@ -416,4 +416,4 @@ CUDA_CALLABLE bool operator==(Stack left, Stack right) {
          left.top == right.top;
 }
 
-CUDA_CALLABLE bool operator!=(Stack& left, Stack& right) { return !(left == right); }
+inline CUDA_CALLABLE bool operator!=(Stack& left, Stack& right) { return !(left == right); }
