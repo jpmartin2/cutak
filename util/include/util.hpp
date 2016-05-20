@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #if defined(__CUDACC__)
 #define CUDA_CALLABLE __host__ __device__
 #else
@@ -18,5 +20,37 @@ inline T min(T a, T b) { return std::min(a,b); }
 template<typename T>
 inline T max(T a, T b) { return std::max(a,b); }
 #endif
+
+template<typename T>
+class option {
+  static const option None;
+  operator bool() const { return valid; }
+  T operator*() { return t; }
+  option& operator=(T val) { t = val; return *this; }
+  option() : valid(false) {}
+private:
+  bool valid;
+  T t;
+};
+
+template<typename T>
+const option<T> option<T>::None = option();
+
+/*
+// Optimization for references.
+// Stores the reference as a pointer and
+// uses a null pointer to represent None
+template<typename T>
+class option<T&> {
+public:
+  static const option None = option();
+  operator bool() const { return t != nullptr; }
+  T& operator*() { return *t; }
+  operator=(T& val) { t = &val; }
+  option() : valid(false) {}
+private:
+  T* t;
+};
+*/
 
 } // namespace util

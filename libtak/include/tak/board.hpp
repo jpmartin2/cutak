@@ -116,12 +116,12 @@ public:
     // Bit vector of visited nodes
     uint64_t visited = 0;
     // Queue of currently waiting nodes
-    uint8_t queue[4*(SIZE-1)];
+    uint8_t queue[SIZE*SIZE];
     uint8_t queueSize;
 
     auto visit = [this, player, &queue, &queueSize, &visited](uint8_t n) {
       if(board[n].height && (board[n].owner() == player) && (board[n].top != Piece::WALL)) {
-        uint8_t nm = 1<<n;
+        uint64_t nm = ((uint64_t)1)<<n;
         if((visited&nm) == 0) {
           visited |= nm;
           queue[queueSize++] = n;
@@ -145,10 +145,10 @@ public:
         return true;
       }
 
-      if((node+NORTH) < SIZE*SIZE) visit(node+NORTH);
-      if((node+EAST)/SIZE == node/SIZE) visit(node+EAST);
-      if((node+WEST)/SIZE == node/SIZE) visit(node+WEST);
-      if((node+SOUTH) < SIZE*SIZE) visit(node+SOUTH);
+      if((uint8_t)(node+NORTH) < SIZE*SIZE) visit(node+NORTH);
+      if(((uint8_t)(node+EAST))/SIZE == node/SIZE) visit(node+EAST);
+      if(((uint8_t)(node+WEST))/SIZE == node/SIZE) visit(node+WEST);
+      if((uint8_t)(node+SOUTH) < SIZE*SIZE) visit(node+SOUTH);
     }
 
     // Search for a left<->right road
@@ -167,10 +167,10 @@ public:
         return true;
       }
 
-      if((node+EAST)/SIZE == node/SIZE) visit(node+EAST);
-      if((node+NORTH) < SIZE*SIZE) visit(node+NORTH);
-      if((node+SOUTH) < SIZE*SIZE) visit(node+SOUTH);
-      if((node+WEST)/SIZE == node/SIZE) visit(node+WEST);
+      if(((uint8_t)(node+EAST))/SIZE == node/SIZE) visit(node+EAST);
+      if((uint8_t)((node+NORTH)) < SIZE*SIZE) visit(node+NORTH);
+      if((uint8_t)((node+SOUTH)) < SIZE*SIZE) visit(node+SOUTH);
+      if(((uint8_t)(node+WEST))/SIZE == node/SIZE) visit(node+WEST);
     }
 
     return false;
@@ -264,15 +264,19 @@ public:
         } else if(board[i].owner() == curPlayer) {
           int stack_size = util::min(SIZE,board[i].height);
           for(auto move : Table::moves(stack_size, map.left[i])) {
+            //std::cout << "Stack size: " << stack_size << ", left[i] = "<< (int)map.left[i] << std::endl;
             if(func(Move<SIZE>(i, Move<SIZE>::Dir::WEST, move)) == BREAK) return;
           }
           for(auto move : Table::moves(stack_size, map.right[i])) {
+            //std::cout << "Stack size: " << stack_size << ", left[i] = "<< (int)map.left[i] << std::endl;
             if(func(Move<SIZE>(i, Move<SIZE>::Dir::EAST, move)) == BREAK) return;
           }
           for(auto move : Table::moves(stack_size, map.up[i])) {
+            //std::cout << "Stack size: " << stack_size << ", left[i] = "<< (int)map.left[i] << std::endl;
             if(func(Move<SIZE>(i, Move<SIZE>::Dir::NORTH, move)) == BREAK) return;
           }
           for(auto move : Table::moves(stack_size, map.down[i])) {
+            //std::cout << "Stack size: " << stack_size << ", left[i] = "<< (int)map.left[i] << std::endl;
             if(func(Move<SIZE>(i, Move<SIZE>::Dir::SOUTH, move)) == BREAK) return;
           }
         }

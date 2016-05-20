@@ -11,6 +11,8 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include_directories(external/asio/asio/include)
+
 add_subdirectory(util)
 add_subdirectory(libtak)
 add_subdirectory(ai)

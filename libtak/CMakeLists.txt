@@ -13,6 +13,7 @@ add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/table.cu ${PROJECT_BINARY_DIR}/i
 
 file(GLOB_RECURSE HEADERS include/*.hpp)
 file(GLOB_RECURSE GEN_HEADERS ${PROJECT_BINARY_DIR}/include/*.hpp)
+#set(SOURCE src/net/message.cpp)
 set(GEN_SOURCE ${PROJECT_BINARY_DIR}/table.cu)
 
 source_group("Header Files" FILES ${HEADERS})
@@ -23,7 +24,7 @@ get_property(UTIL_INCLUDES TARGET util PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${UTIL_INCLUDES})
 
 include_directories(${PROJECT_BINARY_DIR}/include)
-cuda_add_library(tak STATIC ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS})
+cuda_add_library(tak STATIC ${SOURCE} ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS})
 target_link_libraries(tak util)
 target_include_directories(tak PUBLIC ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include ${UTIL_INCLUDES})
 

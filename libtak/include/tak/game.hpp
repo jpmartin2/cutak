@@ -28,7 +28,7 @@ PIECES
 #undef GAME
 #undef PIECES
 
-enum Player {
+enum Color {
   WHITE = 0,
   BLACK = 1,
   NEITHER = 2,

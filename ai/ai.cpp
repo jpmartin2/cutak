@@ -13,7 +13,7 @@ struct eval {
   };
 
   template<uint8_t SIZE>
-  int operator()(Board<SIZE>& state) {
+  int operator()(Board<SIZE>& state, uint8_t player) {
     return 0;
   }
 };
