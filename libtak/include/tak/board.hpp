@@ -288,11 +288,9 @@ public:
     switch(m.type()) {
     case Move<SIZE>::Type::MOVE: {
       if(m.idx() > SIZE*SIZE) {
-        std::cout << "Invalid move: index out of range" << std::endl;
         return false;
       }
       if(board[m.idx()].owner() != curPlayer) {
-        std::cout << "Inalid move: trying to move stack of wrong player" << std::endl;
         return false;
       }
       if(m.pieceType() == Piece::INVALID) return false;
@@ -302,18 +300,15 @@ public:
         if(board[i].height > 0) {
           if(n == m.range() && board[i].top == Piece::WALL) {
             if(board[m.idx()].top != Piece::CAP || m.slides(n) > 1) {
-              std::cout << "Invalid move: only a cap alone can flatten a wall" << std::endl;
               return false;
             }
           } else if(board[i].top == Piece::WALL || board[i].top == Piece::CAP) {
-            std::cout << "Invalid move: cannot move on top of wall or cap" << std::endl;
             return false;
           }
         }
         slide_sum += m.slides(n);
       }
       if(slide_sum > board[m.idx()].height) {
-        std::cout << "Invalid move: trying to move too many pieces" << std::endl;
         return false;
       }
       return true; }

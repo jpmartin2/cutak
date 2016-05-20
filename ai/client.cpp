@@ -101,9 +101,9 @@ private:
     uint8_t pl = player;
     std::string cg = cur_game;
     std::thread([g,pl,cg,this]() mutable {
-      alphabeta ab(pl);
+      alphabeta<SIZE> ab(pl);
       Move<SIZE> move;
-      int score = ab.search(g, move, eval_t(), 5);
+      int score = ab.search(g, move, eval_t(), 6);
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl;
       std::string m;
       switch(move.type()) {
