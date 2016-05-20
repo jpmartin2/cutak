@@ -2,11 +2,10 @@ cmake_minimum_required(VERSION 2.8)
 
 project(cutak)
 
-find_package(CUDA QUIET REQUIRED)
-
-set(CUDA_SEPARABLE_COMPILATION ON)
-
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11)
+#Not needed yet
+#find_package(CUDA QUIET REQUIRED)
+#set(CUDA_SEPARABLE_COMPILATION ON)
+#set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}; -std=c++11)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
