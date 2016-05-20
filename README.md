@@ -12,7 +12,7 @@ The libtak subdirectory contains the general framework used to simulate games of
 
 ### External Dependencies
 
-The main dependency is on asio, used to do the networking, which is included as a git submodule, so make sure to clone with --recursive
+The only dependency is on asio, used to do the networking, which is included as a git submodule, so make sure to clone with --recursive
 
 ### About the name
 
