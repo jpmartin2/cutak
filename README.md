@@ -10,6 +10,10 @@ but currently has a very very poor evaluation function for leaf nodes.
 
 The libtak subdirectory contains the general framework used to simulate games of tak.
 
+### External Dependencies
+
+The main dependency is on asio, used to do the networking, which is included as a git submodule, so make sure to clone with --recursive
+
 ### About the name
 
 I'm planning on experimenting with GPU acceleration using CUDA in the future, hence the name *cu*tak.
