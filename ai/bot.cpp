@@ -13,6 +13,7 @@
 #include "tak/ptn.hpp"
 #include "tak/tps.hpp"
 #include "alphabeta.hpp"
+#include "eval.hpp"
 
 const uint8_t SIZE = 5;
 
@@ -20,32 +21,6 @@ using asio::ip::tcp;
 using err_t = std::error_code;
 
 struct Login { std::string username, password; };
-
-struct Eval {
-  using Score = int32_t;
-
-  enum S : Score {
-    MIN = -(1<<30),
-    MAX = (1<<30),
-    LOSS = -(1<<29),
-    WIN = 1<<29,
-  };
-
-  template<uint8_t SIZE>
-  static Score eval(const Board<SIZE>& state, uint8_t player) {
-    Score score = 0;
-    for(Stack s : state.board) {
-      if(s.top == Piece::FLAT && s.height) {
-        if(s.owner() == player) {
-          score++;
-        } else {
-          score--;
-        }
-      }
-    }
-    return score;
-  }
-};
 
 using namespace tak::net;
 
@@ -153,7 +128,7 @@ private:
           while(true) {
             std::cout << "Sending ping..."<< std::endl;
             send_msg(ClientMsg::ping());
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::this_thread::sleep_for(std::chrono::seconds(30));
           }
         }).detach();
         readline();
@@ -227,7 +202,7 @@ private:
   std::unique_ptr<DynamicBoard> game;
   Player my_color;
   int game_id;
-  static const int max_depth = 6;
+  static const int max_depth = 5;
 
   asio::streambuf buf;
   std::queue<std::string> msg_queue;

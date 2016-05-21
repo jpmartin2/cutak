@@ -47,20 +47,19 @@ public:
   uint32_t round;
 
   class Map {
-  private:
+  public:
     uint8_t left[SIZE*SIZE];
     uint8_t right[SIZE*SIZE];
     uint8_t up[SIZE*SIZE];
     uint8_t down[SIZE*SIZE];
-  public:
-    friend class Board;
-    CUDA_CALLABLE Map(Board& board) {
+
+    CUDA_CALLABLE Map(const Board& board) {
       int c, w;
 
       auto update = [&board, &c, &w](uint8_t target[], int i, int j) {
         int idx = i+j;
         Piece type = board.board[idx].height ? board.board[idx].top : Piece::INVALID;
-        target[idx] = (((type==Piece::CAP)&&w)<<7)|c;
+        target[idx] = (((type==Piece::CAP)&&w)<<7)|util::min(board.board[idx].height,(uint8_t)c);
         c++;
         if(type == Piece::WALL || type == Piece::CAP) {
           c = 0;

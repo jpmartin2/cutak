@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
   header << "  };\n\n";
   header << "  CUDA_CALLABLE static range moves(int stack_height, int max_move) {\n";
   header << "    int start = get_table_idxs(stack_height);\n";
-  header << "    int moves = util::min(max_move&0x7F, stack_height);\n";
+  header << "    int moves = max_move&0x7F;\n";
   header << "    int extra = (max_move&0x80) ? binomial_coeff(stack_height-1, moves) : 0;\n";
   header << "    return range(start, start+binomial_sum(stack_height, moves)+extra);\n";
   header << "  }\n";

@@ -64,6 +64,12 @@ public:
           if(alpha >= beta) {
             return beta;
           }
+
+          // Once we find a 1 ply win, we can stop searching
+          // since we can't do better
+          if(bestScore == Evaluator::WIN+max_depth) {
+            return bestScore;
+          }
         }
       }
 
@@ -92,6 +98,12 @@ public:
           }
 
           bestScore = beta;
+          return BREAK;
+        }
+
+        // Once we find a 1 ply win, we can stop searching
+        // since we can't do better
+        if(bestScore == Evaluator::WIN+max_depth) {
           return BREAK;
         }
 
