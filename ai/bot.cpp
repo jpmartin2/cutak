@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <regex>
 #include <fstream>
+#include <sstream>
 #include <queue>
 #include <memory>
 #include <unordered_set>
@@ -15,8 +16,6 @@
 #include "alphabeta.hpp"
 #include "eval.hpp"
 
-const uint8_t SIZE = 5;
-
 using asio::ip::tcp;
 using err_t = std::error_code;
 
@@ -26,7 +25,7 @@ using namespace tak::net;
 
 class client : public ServerMsg::Visitor, DynamicBoard::Visitor {
 public:
-  client(asio::io_service& io, tcp::resolver::iterator endpoints, Login login, std::vector<std::string> whitelist) : io(io), sock(io), login(login), whitelist(whitelist), game_id(-1) {
+  client(asio::io_service& io, tcp::resolver::iterator endpoints, Login login, std::vector<std::string> whitelist) : io(io), sock(io), login(login), whitelist(whitelist), game_id(-1), max_depth(DEFAULT_MAX_DEPTH) {
     connect(endpoints);
   }
 private:
@@ -46,11 +45,14 @@ private:
   virtual void game_start_msg(
     int id, int size, std::string player1, std::string player2, Player player
   ) {
-    std::cout << "Starting game against " << (player == WHITE ? player2 : player1) << std::endl;
+    otherPlayer = player == WHITE ? player2 : player1;
+    std::cout << "Starting game against " << otherPlayer << std::endl;
     my_color = player;
 
     game = std::unique_ptr<DynamicBoard>(new DynamicBoard(size));
     game_id = id;
+
+    send_msg_io(ClientMsg::shout("Good luck, "+otherPlayer+"!"));
 
     if(my_color == WHITE) {
       game->accept(*this);
@@ -78,13 +80,22 @@ private:
   // Called whichever way a game ends
   void game_done(int id) {
     if(id == game_id) {
+      send_msg_io(ClientMsg::shout("gg, "+otherPlayer+"!"));
       game_id = -1;
       game.reset();
+      max_depth = DEFAULT_MAX_DEPTH;
       seek();
     }
   }
 
   virtual void seek_new_msg(Seek seek) {
+    /*
+    static bool played = false;
+    if(!played && seek.player == "TakticianBot") {
+      send_msg_io(ClientMsg::accept(seek.id));
+      played = true;
+    }
+    */
     seeks.insert(seek);
   }
 
@@ -94,16 +105,43 @@ private:
 
   virtual void shout_msg(std::string name, std::string msg) {
     std::regex command_rgx("^cutak_bot: (.*)");
-    if(std::find(whitelist.begin(), whitelist.end(), name) != whitelist.end()) {
-      std::smatch match;
-      if(std::regex_search(msg, match, command_rgx)) {
-        if(match[1].str() == "play") {
-          auto seek = std::find_if(seeks.begin(), seeks.end(), [&](Seek s) { return s.player == name; });
-          if(seek != seeks.end()) {
-            send_msg_io(ClientMsg::accept(seek->id));
+    std::smatch match;
+    if(std::regex_search(msg, match, command_rgx)) {
+      std::istringstream buffer(match[1].str());
+      std::vector<std::string> words((std::istream_iterator<std::string>(buffer)),
+                                      std::istream_iterator<std::string>());
+
+      if(words.size() && words[0] == "play") {
+        if(game) {
+          send_msg_io(ClientMsg::shout("Sorry "+name+", I'm currently playing a game against "+otherPlayer+". Please try again once this game is over."));
+        } else {
+          if(words.size() == 2) {
+            try {
+              max_depth = std::stoi(words[1]);
+            } catch(std::exception e) {
+              send_msg(ClientMsg::shout("Sorry "+name+", I failed to parse the depth `"+words[1]+"'"));
+            }
+          } else if(words.size() > 2) {
+            send_msg_io(ClientMsg::shout("Sorry "+name+", I don't understand that command."));
+            send_msg_io(ClientMsg::shout("I currently support the command `cutak_bot: play <depth>'"));
+            return;
           }
+          play(name);
         }
       }
+    }
+  }
+
+  bool authorized(std::string player) {
+    return std::find(whitelist.begin(), whitelist.end(), player) != whitelist.end();
+  }
+
+  void play(std::string player) {
+    auto seek = std::find_if(seeks.begin(), seeks.end(), [&](Seek s) { return s.player == player; });
+    if(seek != seeks.end()) {
+      send_msg_io(ClientMsg::accept(seek->id));
+    } else {
+      //send_msg_io(ClientMsg::shout("Sorry "+player+", I couldn't find a game of yours to join. Please create one and try again."));
     }
   }
 
@@ -182,6 +220,11 @@ private:
       Move<N> move; \
       alphabeta<N, Eval>::Score score = ab.search(board, move, max_depth); \
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl; \
+      std::cout << "Move sequence: "; \
+      for(auto m : ab.best_moves) { \
+        std::cout << ptn::to_str(m) << ", "; \
+      }\
+      std::cout << std::endl; \
       io.post([this, move, id]() mutable { \
         if(id == game_id && game) { \
           DynamicMove m = move;\
@@ -201,8 +244,10 @@ private:
 
   std::unique_ptr<DynamicBoard> game;
   Player my_color;
+  std::string otherPlayer;
   int game_id;
-  static const int max_depth = 5;
+  int max_depth;
+  static const int DEFAULT_MAX_DEPTH = 6;
 
   asio::streambuf buf;
   std::queue<std::string> msg_queue;

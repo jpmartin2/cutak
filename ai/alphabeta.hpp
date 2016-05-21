@@ -8,6 +8,7 @@ template<uint8_t SIZE, typename Evaluator>
 class alphabeta {
 public:
   using Score = decltype(Evaluator::eval(Board<SIZE>(), WHITE));
+  std::vector<Move<SIZE>> best_moves;
 
   template<int N>
   struct KillerMove {
@@ -22,6 +23,7 @@ public:
     start = std::chrono::steady_clock::now();
 
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
+    best_moves = std::vector<Move<SIZE>>(max_depth+1, Move<SIZE>());
 
     Score score = search(player, state, bestMove, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
 
@@ -57,6 +59,7 @@ public:
           if(score > bestScore) {
             bestScore = score;
             bestMove = killer_moves[depth].moves[i];
+            best_moves[depth] = bestMove;
           }
 
           alpha = util::max(alpha, score);
@@ -84,6 +87,7 @@ public:
         if(score > bestScore) {
           bestScore = score;
           bestMove = m;
+          best_moves[depth] = bestMove;
         }
 
         alpha = util::max(alpha, score);
