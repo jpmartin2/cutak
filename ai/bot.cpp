@@ -6,6 +6,7 @@
 #include <queue>
 #include <memory>
 #include <unordered_set>
+#include <cstdint>
 #include "asio.hpp"
 #include "tak/tak.hpp"
 #include "tak/net/message.hpp"
@@ -20,17 +21,19 @@ using err_t = std::error_code;
 
 struct Login { std::string username, password; };
 
-struct eval_t {
-  enum {
-    MIN = -65535,
-    MAX = 65535,
-    WIN = 500,
-    LOSS = -500,
+struct Eval {
+  using Score = int32_t;
+
+  enum S : Score {
+    MIN = -(1<<30),
+    MAX = (1<<30),
+    LOSS = -(1<<29),
+    WIN = 1<<29,
   };
 
   template<uint8_t SIZE>
-  int operator()(Board<SIZE>& state, uint8_t player) {
-    int score = 0;
+  static Score eval(const Board<SIZE>& state, uint8_t player) {
+    Score score = 0;
     for(Stack s : state.board) {
       if(s.top == Piece::FLAT && s.height) {
         if(s.owner() == player) {
@@ -200,9 +203,9 @@ private:
   virtual void visit(Board<N>& board) { \
     int id = game_id; \
     std::thread([this, board, id] () mutable { \
-      alphabeta<N> ab(my_color); \
+      alphabeta<N, Eval> ab(my_color); \
       Move<N> move; \
-      int score = ab.search(board, move, eval_t(), max_depth); \
+      alphabeta<N, Eval>::Score score = ab.search(board, move, max_depth); \
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl; \
       io.post([this, move, id]() mutable { \
         if(id == game_id && game) { \
