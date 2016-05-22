@@ -17,7 +17,8 @@ public:
     MOVE = 1,
   };
 
-  CUDA_CALLABLE inline Move() : idx_(0), type_(Type::PLACE), data(Piece::FLAT) {}
+  //CUDA_CALLABLE inline Move() : idx_(0), type_(Type::PLACE), data(Piece::FLAT) {}
+  CUDA_CALLABLE inline Move() = default;
 
   CUDA_CALLABLE inline Move(uint8_t idx, Piece pieceType) :
     idx_(idx), type_(Type::PLACE), data(pieceType) {}
@@ -73,6 +74,7 @@ private:
       Piece undo;
     } movement;
 
+    CUDA_CALLABLE inline Data() = default;
     CUDA_CALLABLE inline Data(Piece pieceType) : placement({pieceType}) {}
     CUDA_CALLABLE inline Data(Dir dir, uint8_t range, uint8_t slides[SIZE-1]) {
       movement.dir = dir;
@@ -91,3 +93,17 @@ private:
   } data;
 };
 
+template<uint8_t SIZE>
+CUDA_CALLABLE inline bool operator==(Move<SIZE>& left, Move<SIZE>& right) {
+  if(left.idx() != right.idx() || left.type() != right.type()) return false;
+  if(left.type() == Move<SIZE>::Type::PLACE) {
+    return left.pieceType() == right.pieceType();
+  } else {
+    if(left.dir() != right.dir() || left.range() != right.range()) return false;
+    for(int i = 1; i <= left.range(); i++) {
+      if(left.slides(i) != right.slides(i)) return false;
+    }
+
+    return true;
+  }
+}

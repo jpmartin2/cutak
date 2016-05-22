@@ -221,9 +221,6 @@ private:
       alphabeta<N, Eval>::Score score = ab.search(board, move, max_depth); \
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl; \
       std::cout << "Move sequence: "; \
-      for(auto m : ab.best_moves) { \
-        std::cout << ptn::to_str(m) << ", "; \
-      }\
       std::cout << std::endl; \
       io.post([this, move, id]() mutable { \
         if(id == game_id && game) { \
