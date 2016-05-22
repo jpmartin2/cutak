@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_set>
 #include <cstdint>
+#define ASIO_STANDALONE
 #include "asio.hpp"
 #include "tak/tak.hpp"
 #include "tak/net/message.hpp"
@@ -254,7 +255,7 @@ private:
   std::vector<std::string> whitelist;
 
   // Hash Seeks on their id
-  struct SeekHash { size_t operator()(const Seek& seek) { return seek.id; } };
+  struct SeekHash { size_t operator()(const Seek& seek) const { return seek.id; } };
   std::unordered_set<Seek, SeekHash> seeks;
 
   asio::io_service& io;
