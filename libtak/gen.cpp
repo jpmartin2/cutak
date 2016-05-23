@@ -28,7 +28,7 @@ int binomial(int N, int K) {
 int main(int argc, char** argv) {
   std::ofstream header, source;
   header.open("include/table.hpp");
-  source.open("table.cpp");
+  source.open("table.cu");
   header << "#pragma once\n";
   header << "#include <iterator>\n";
   header << "#include <array>\n";
