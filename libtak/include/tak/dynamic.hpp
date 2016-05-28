@@ -142,14 +142,12 @@ public:
   void accept(Visitor& v);
 private:
   int size;
-  union B {
-    Board<3> three;
-    Board<4> four;
-    Board<5> five;
-    Board<6> six;
-    Board<7> seven;
-    Board<8> eight;
-
-    B(int size);
-  } board;
+  union {
+    struct { Board<3> three; };
+    struct { Board<4> four; };
+    struct { Board<5> five; };
+    struct { Board<6> six; };
+    struct { Board<7> seven; };
+    struct { Board<8> eight; };
+  };
 };

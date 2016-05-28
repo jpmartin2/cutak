@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 
 #if defined(__CUDACC__)
 #define CUDA_CALLABLE __host__ __device__

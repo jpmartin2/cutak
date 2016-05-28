@@ -4,6 +4,7 @@
 #include "tak/ptn.hpp"
 #include <vector>
 #include <iostream>
+#include <atomic>
 
 template<uint8_t SIZE, typename Evaluator>
 class alphabeta {
@@ -22,15 +23,17 @@ private:
   private:
     struct InternalEntry {
       //Board<SIZE> b;
-      uint64_t hash;
-      uint64_t data;
+      std::atomic<uint64_t> hash;
+      std::atomic<uint64_t> data;
+      //uint64_t hash;
+      //uint64_t data;
     };
 
     std::array<InternalEntry, NUM_ENTRIES> table;
   public:
     struct Entry {
     private:
-      friend class TranspositionTable;
+      friend struct TranspositionTable;
       uint64_t data;
       Entry(uint64_t data) : data(data) {}
     public:
@@ -59,15 +62,21 @@ private:
 
     inline util::option<Entry> get(Board<SIZE>& b) {
       uint64_t hash = b.hash();
-      auto e = table[hash % NUM_ENTRIES];
-      if((e.hash ^ e.data) != hash) return util::option<Entry>::None;
-      else {
+      //auto e = table[hash % NUM_ENTRIES].load(std::memory_order_relaxed);
+      auto& e = table[hash % NUM_ENTRIES];
+      auto h = e.hash.load(std::memory_order_relaxed);
+      auto d = e.data.load(std::memory_order_relaxed);
+      //auto h = e.hash;
+      //auto d = e.data;
+      if((h ^ d) != hash) {
+        return util::option<Entry>::None;
+      } else {
         //if(e.b != b) {
           //std::cout << "Hash collision: " << hash << std::endl;
           //std::cout << tps::to_str(e.b) << std::endl;
           //std::cout << tps::to_str(b) << std::endl;
         //}
-        return util::option<Entry>(Entry(e.data));
+        return util::option<Entry>(Entry(d));
       }
     }
 
@@ -75,8 +84,10 @@ private:
       auto ex = get(b);
       uint64_t hash = b.hash();
       if(ex && ex->depth() >= e.depth()) return;
-      //table[hash % NUM_ENTRIES] = InternalEntry { b, hash^e.data, e.data };
-      table[hash % NUM_ENTRIES] = InternalEntry { hash^e.data, e.data };
+      //table[hash % NUM_ENTRIES] = InternalEntry { hash^e.data, e.data };
+      //table[hash % NUM_ENTRIES].store(InternalEntry { hash^e.data, e.data }, std::memory_order_relaxed);
+      table[hash % NUM_ENTRIES].hash.store(hash^e.data, std::memory_order_relaxed);
+      table[hash % NUM_ENTRIES].data.store(e.data, std::memory_order_relaxed);
     }
   };
 
@@ -94,17 +105,21 @@ public:
   alphabeta(uint8_t player) : player(player) {}
 
   Score search(Board<SIZE>& state, Move<SIZE>& bestMove, int max_depth) {
+    std::vector<Move<SIZE>> pv;
+    pv.resize(max_depth);
+    Score score;
+    std::chrono::duration<double> time_span;
     // NO TT
+    /*
     leaf_count = 0;
 
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
     start = std::chrono::steady_clock::now();
 
-    Move<SIZE> pv[max_depth];
-    Score score = search(player, state, pv, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
+    score = search(player, state, pv, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
 
     end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
+    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
     std::cout << "Principal variation (no tt):";
     for(auto move : pv) {
       std::cout << " " << ptn::to_str(move);
@@ -112,6 +127,7 @@ public:
     std::cout << std::endl;
     std::cout << leaf_count << " leafs evaluated in " << time_span.count() << "s" << std::endl;
     std::cout << leaf_count/time_span.count() << " leafs/s" << std::endl;
+    */
 
     // W/ TT
     hits = 0;
@@ -140,7 +156,7 @@ public:
     return score;
   }
 
-  Score search(uint8_t p, Board<SIZE>& state, Move<SIZE>* pv, int max_depth, int depth, Score alpha, Score beta) {
+  Score search(uint8_t p, Board<SIZE>& state, std::vector<Move<SIZE>>& pv, int max_depth, int depth, Score alpha, Score beta) {
     using Entry = typename TT::Entry;
     Score init_alpha = alpha;
     if(ttable) {
@@ -197,18 +213,12 @@ public:
         return 0;
       };
 
-      int numMoves = 0;
-      state.forEachMove(map, [&numMoves](Move<SIZE> m) {
-        numMoves++;
+      std::vector<MoveAndScore> moves;
+      state.forEachMove(map, [&moves, score_move](Move<SIZE> m) {
+        moves.push_back({m, score_move(m)});
         return CONTINUE;
       });
-      MoveAndScore moves[numMoves];
-      numMoves = 0;
-      state.forEachMove(map, [&moves, &numMoves, score_move](Move<SIZE> m) {
-        moves[numMoves++] = MoveAndScore{ m, score_move(m)};
-        return CONTINUE;
-      });
-
+      auto numMoves = moves.size();
       // Sort the moves, high to low
       // (insertion sort)
       for(int i = 1; i < numMoves; i++) {
@@ -221,7 +231,8 @@ public:
       }
 
       Score bestScore = Evaluator::MIN;
-      Move<SIZE> line[max_depth-depth-1];
+      std::vector<Move<SIZE>> line;
+      line.resize(max_depth-depth-1);
       for(int i = 0; i < numMoves; i++) {
         Move<SIZE>& m = moves[i].m;
         Board<SIZE> check = state;
@@ -232,7 +243,7 @@ public:
         if(score > bestScore) {
           bestScore = score;
           pv[0] = m;
-          std::copy(line, line+max_depth-depth-1, pv+1);
+          std::copy(line.begin(), line.end(), pv.begin()+1);
         }
         alpha = util::max(alpha, score);
 

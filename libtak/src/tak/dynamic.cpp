@@ -1,5 +1,6 @@
 #include "tak/dynamic.hpp"
 
+/*
 DynamicBoard::B::B(int size) {
   switch(size) {
   case 3:
@@ -25,39 +26,64 @@ DynamicBoard::B::B(int size) {
     break;
   }
 }
+*/
 
-DynamicBoard::DynamicBoard(int size) : size(size), board(size) {}
+DynamicBoard::DynamicBoard(int size) : size(size) {//, board(size) {}
+  switch(size) {
+  case 3:
+    three = Board<3>();
+    break;
+  case 4:
+    four = Board<4>();
+    break;
+  case 5:
+    five = Board<5>();
+    break;
+  case 6:
+    six = Board<6>();
+    break;
+  case 7:
+    seven = Board<7>();
+    break;
+  case 8:
+    eight = Board<8>();
+    break;
+  default:
+    std::cout << "Boards of size < 3 or > 8 not supported!" << std::endl;
+    break;
+  }
+}
 
 void DynamicBoard::execute(DynamicMove& move) {
   switch(size) {
   case 3: {
     Move<3> m = move;
-    board.three.execute(m);
+    three.execute(m);
     break;
           }
   case 4: {
     Move<4> m = move;
-    board.four.execute(m);
+    four.execute(m);
     break;
           }
   case 5: {
     Move<5> m = move;
-    board.five.execute(m);
+    five.execute(m);
     break;
           }
   case 6: {
     Move<6> m = move;
-    board.six.execute(m);
+    six.execute(m);
     break;
           }
   case 7: {
     Move<7> m = move;
-    board.seven.execute(m);
+    seven.execute(m);
     break;
           }
   case 8: {
     Move<8> m = move;
-    board.eight.execute(m);
+    eight.execute(m);
     break;
           }
   default:
@@ -69,32 +95,32 @@ void DynamicBoard::undo(DynamicMove& move) {
   switch(size) {
   case 3: {
     Move<3> m = move;
-    board.three.undo(m);
+    three.undo(m);
     break;
           }
   case 4: {
     Move<4> m = move;
-    board.four.undo(m);
+    four.undo(m);
     break;
           }
   case 5: {
     Move<5> m = move;
-    board.five.undo(m);
+    five.undo(m);
     break;
           }
   case 6: {
     Move<6> m = move;
-    board.six.undo(m);
+    six.undo(m);
     break;
           }
   case 7: {
     Move<7> m = move;
-    board.seven.undo(m);
+    seven.undo(m);
     break;
           }
   case 8: {
     Move<8> m = move;
-    board.eight.undo(m);
+    eight.undo(m);
     break;
           }
   default:
@@ -105,22 +131,22 @@ void DynamicBoard::undo(DynamicMove& move) {
 void DynamicBoard::accept(DynamicBoard::Visitor& v) {
   switch(size) {
   case 3:
-    v.visit(board.three);
+    v.visit(three);
     break;
   case 4:
-    v.visit(board.four);
+    v.visit(four);
     break;
   case 5:
-    v.visit(board.five);
+    v.visit(five);
     break;
   case 6:
-    v.visit(board.six);
+    v.visit(six);
     break;
   case 7:
-    v.visit(board.seven);
+    v.visit(seven);
     break;
   case 8:
-    v.visit(board.eight);
+    v.visit(eight);
     break;
   default:
     break;

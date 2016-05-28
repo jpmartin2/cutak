@@ -32,7 +32,7 @@ public:
 private:
 
   void seek() {
-    send_msg_io(ClientMsg::seek(5, 1800, 0));
+    send_msg_io(ClientMsg::seek(5, 1800, 0, WHITE));
   }
 
   virtual void error_msg(std::string msg) {

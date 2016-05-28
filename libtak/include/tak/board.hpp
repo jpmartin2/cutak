@@ -150,7 +150,7 @@ public:
     visited = queueSize = 0;
     for(int i = 0; i < SIZE; i++) {
       if(board[i].height && (board[i].owner() == player) && board[i].top != Piece::WALL) {
-        visited |= 1<<i;
+        visited |= static_cast<uint64_t>(1)<<i;
         queue[queueSize++] = i;
       }
     }
@@ -172,7 +172,7 @@ public:
     visited = queueSize = 0;
     for(int i = 0; i < SIZE*SIZE; i += SIZE) {
       if(board[i].height && board[i].owner() == player && board[i].top != Piece::WALL) {
-        visited |= 1<<i;
+        visited |= static_cast<uint64_t>(1)<<i;
         queue[queueSize++] = i;
       }
     }
