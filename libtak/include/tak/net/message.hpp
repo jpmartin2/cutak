@@ -24,7 +24,7 @@ public:
   static ClientMsg client(std::string client_name);
   static ClientMsg login(std::string username, std::string password);
   static ClientMsg login_guest();
-  static ClientMsg seek(int size, int time, util::option<Player> player = util::option<Player>::None);
+  static ClientMsg seek(int size, int time, int incr, util::option<Player> player = util::option<Player>::None);
   static ClientMsg accept(int seek_id);
   static ClientMsg move(int game_id, DynamicMove move);
   static ClientMsg offer_draw(int game_id);
@@ -55,7 +55,7 @@ public:
     inline virtual void login_success_msg(std::string name) {}
     inline virtual void game_add_msg(
       int id, std::string player1, std::string player2,
-      int size, int time, int moves, std::string cur_player
+      int size, int time, int incr, int moves, std::string cur_player
     ) {}
     // There's more information in this message, but it seems useless
     inline virtual void game_remove_msg(int id) {}

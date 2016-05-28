@@ -27,8 +27,8 @@ ClientMsg ClientMsg::login_guest() {
   return ClientMsg("Login Guest\n");
 }
 
-ClientMsg ClientMsg::seek(int size, int time, util::option<Player> player) {
-  std::string msg = "Seek "+std::to_string(size)+" "+std::to_string(time);
+ClientMsg ClientMsg::seek(int size, int time, int incr, util::option<Player> player) {
+  std::string msg = "Seek "+std::to_string(size)+" "+std::to_string(time)+" "+std::to_string(incr);
   if(player) {
     msg += *player == WHITE ? " W" : " B";
   }
@@ -143,8 +143,8 @@ const std::string ClientMsg::text() { return msg; }
 std::regex welcome_rgx("^Welcome!");
 std::regex login_prompt_rgx("^Login or Register");
 std::regex login_succes_rgx("^Welcome ([^!]+)!");
-std::regex game_add_rgx("^GameList Add Game#([0-9]+) ([^ ]+) vs ([^ ]+), ([0-9]+)x([0-9]+), ([0-9]+), ([0-9]+) half-moves played, ([^ ]+) to move");
-std::regex game_remove_rgx("^GameList Remove Game#([0-9]+) ([^ ]+) vs ([^ ]+), ([0-9]+)x([0-9]+), ([0-9]+), ([0-9]+) half-moves played, ([^ ]+) to move");
+std::regex game_add_rgx("^GameList Add Game#([0-9]+) ([^ ]+) vs ([^ ]+), ([0-9]+)x([0-9]+), ([0-9]+), ([0-9]+), ([0-9]+) half-moves played, ([^ ]+) to move");
+std::regex game_remove_rgx("^GameList Remove Game#([0-9]+) ([^ ]+) vs ([^ ]+), ([0-9]+)x([0-9]+), ([0-9]+), ([0-9]+), ([0-9]+) half-moves played, ([^ ]+) to move");
 std::regex game_start_rgx("^Game Start ([0-9]+) ([3-8]) ([^ ]+) vs ([^ ]+) (white|black)");
 std::regex place_rgx("^Game#([0-9]+) P ([A-F][1-8])(?: ([CW]))?");
 std::regex move_rgx("^Game#([0-9]+) M ([A-F][1-8]) ([A-F][1-8])((?: [1-8])+)");
@@ -183,8 +183,8 @@ void ServerMsg::handle(ServerMsg::Visitor& handler) {
     } else {
       handler.game_add_msg(
         std::stoi(match[1].str()), match[2].str(), match[3].str(),
-        std::stoi(match[4].str()), std::stoi(match[6].str()),
-        std::stoi(match[7].str()), match[8].str()
+        std::stoi(match[4].str()), std::stoi(match[6].str()), std::stoi(match[7].str()),
+        std::stoi(match[8].str()), match[9].str()
       );
     }
   } else if(std::regex_search(m, match, game_remove_rgx)) {

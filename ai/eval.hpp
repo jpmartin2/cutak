@@ -108,7 +108,7 @@ struct Eval {
 
   template<uint8_t SIZE>
   static Score eval(const Board<SIZE>& state, uint8_t player) {
-    return eval_player(state, player) - eval_player(state, !player) + distribution(generator);
+    return eval_player(state, player) - eval_player(state, !player);// + distribution(generator);
   }
 };
 

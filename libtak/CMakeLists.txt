@@ -26,7 +26,8 @@ include_directories(${UTIL_INCLUDES})
 include_directories(${PROJECT_BINARY_DIR}/include)
 include_directories(include)
 
-cuda_add_executable(alphabeta ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS} alphabeta.cu)
+#cuda_add_executable(alphabeta ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS} alphabeta.cu)
+#target_link_libraries(alphabeta util ${CUDA_LIBRARIES})
 
 cuda_add_library(tak STATIC ${SOURCE} ${GEN_SOURCE} ${HEADERS} ${GEN_HEADERS})
 target_link_libraries(tak util)

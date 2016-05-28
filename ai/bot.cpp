@@ -32,7 +32,15 @@ public:
 private:
 
   void seek() {
-    send_msg_io(ClientMsg::seek(5, 1800));
+    send_msg_io(ClientMsg::seek(5, 1800, 0));
+  }
+
+  virtual void error_msg(std::string msg) {
+    std::cout << "ERROR: " << msg << std::endl;
+  }
+
+  virtual void nok_msg() {
+    std::cout << "NOK" << std::endl;
   }
 
   virtual void login_prompt_msg() {
@@ -53,7 +61,7 @@ private:
     game = std::unique_ptr<DynamicBoard>(new DynamicBoard(size));
     game_id = id;
 
-    send_msg_io(ClientMsg::shout("Good luck, "+otherPlayer+"!"));
+    //send_msg_io(ClientMsg::shout("Good luck, "+otherPlayer+"!"));
 
     if(my_color == WHITE) {
       game->accept(*this);
@@ -81,7 +89,7 @@ private:
   // Called whichever way a game ends
   void game_done(int id) {
     if(id == game_id) {
-      send_msg_io(ClientMsg::shout("gg, "+otherPlayer+"!"));
+      //send_msg_io(ClientMsg::shout("gg, "+otherPlayer+"!"));
       game_id = -1;
       game.reset();
       max_depth = DEFAULT_MAX_DEPTH;

@@ -36,6 +36,8 @@ struct Stack {
 
 template<uint8_t SIZE>
 class Board {
+private:
+  uint64_t board_hash;
 public:
   Stack board[SIZE*SIZE];
 
@@ -45,6 +47,17 @@ public:
 
   uint8_t curPlayer;
   uint32_t round;
+
+  uint64_t hash() {
+    return util::fnv64(board_hash).hash(curPlayer).get();
+  }
+
+  uint64_t stackHash(uint8_t idx) {
+    return util::fnv64(util::get_base(idx))
+            .hash(board[idx].height)
+            .hash((uint8_t)board[idx].top)
+            .hash(board[idx].owners).get();
+  }
 
   class Map {
   public:
@@ -101,8 +114,13 @@ public:
     white({ num_flats<SIZE>::value, num_caps<SIZE>::value }),
     black({ num_flats<SIZE>::value, num_caps<SIZE>::value }),
     curPlayer(WHITE),
-    round(1)
-  {}
+    round(1),
+    board_hash(0)
+  {
+    for(int i = 0; i < SIZE*SIZE; i++) {
+      board_hash ^= stackHash(i);
+    }
+  }
 
   // Check if the given player has a road on board
   CUDA_CALLABLE bool playerHasRoad(uint8_t player) const {
@@ -320,17 +338,29 @@ public:
 
   CUDA_CALLABLE void execute(Move<SIZE>& m) {
     switch(m.type()) {
-    case Move<SIZE>::Type::MOVE:
-      for(int n = m.range(); n > 0; n--) {
-        int nDropped = m.slides(n);
-        uint8_t dropped = board[m.idx()].pop(nDropped);
+    case Move<SIZE>::Type::MOVE: {
+      board_hash ^= stackHash(m.idx());
+
+      board_hash ^= stackHash((uint8_t)(m.idx()+m.range()*m.dir()));
+      int nDropped = m.slides(m.range());
+      uint8_t dropped = board[m.idx()].pop(nDropped);
+      board[(uint8_t)(m.idx()+m.range()*m.dir())].push(nDropped, dropped);
+
+      for(int n = m.range()-1; n > 0; n--) {
+        board_hash ^= stackHash((uint8_t)(m.idx()+n*m.dir()));
+        nDropped = m.slides(n);
+        dropped = board[m.idx()].pop(nDropped);
         board[(uint8_t)(m.idx()+n*m.dir())].push(nDropped, dropped);
         board[(uint8_t)(m.idx()+n*m.dir())].top = Piece::FLAT;
+        board_hash ^= stackHash((uint8_t)(m.idx()+n*m.dir()));
       }
       m.undo() = board[(uint8_t)(m.idx()+m.range()*m.dir())].top;
       board[(uint8_t)(m.idx()+m.range()*m.dir())].top = board[m.idx()].top;
       board[m.idx()].top = Piece::FLAT;
+      board_hash ^= stackHash((uint8_t)(m.idx()+m.range()*m.dir()));
+      board_hash ^= stackHash(m.idx());
       break;
+                                 }
     case Move<SIZE>::Type::PLACE:
       switch(m.pieceType()) {
       case Piece::FLAT:
@@ -345,10 +375,12 @@ public:
       default:
         break;
       }
+      board_hash ^= stackHash(m.idx());
       // Place for opposite player if round 1, otherwise place for current player
       board[m.idx()].owners = round == 1 ? !curPlayer : curPlayer;
       board[m.idx()].top = m.pieceType();
       board[m.idx()].height = 1;
+      board_hash ^= stackHash(m.idx());
       break;
     }
 
@@ -399,8 +431,9 @@ CUDA_CALLABLE bool operator==(Board<SIZE>& left, Board<SIZE>& right) {
          left.white.caps == right.white.caps &&
          left.black.flats == right.black.flats &&
          left.black.caps == right.black.caps &&
-         left.curPlayer == right.curPlayer &&
-         left.round == right.round;
+         //left.curPlayer == right.curPlayer &&
+         //left.round == right.round;
+         left.curPlayer == right.curPlayer;
 }
 
 template<uint8_t SIZE>
