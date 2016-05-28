@@ -22,11 +22,8 @@ private:
   struct TranspositionTable {
   private:
     struct InternalEntry {
-      //Board<SIZE> b;
       std::atomic<uint64_t> hash;
       std::atomic<uint64_t> data;
-      //uint64_t hash;
-      //uint64_t data;
     };
 
     std::array<InternalEntry, NUM_ENTRIES> table;
@@ -41,9 +38,41 @@ private:
         INVALID = 0, ALPHA, BETA, EXACT,
       };
 
-      Entry(Type type, int depth, int score) :
-        data((((uint64_t)type)<<62) | (((uint64_t)depth)<<32) | ((uint64_t)score))
+      Entry(Type type, int depth, int16_t score) :
+        data((((uint64_t)type)<<62) | (((uint64_t)depth)<<49) | ((uint64_t)score)<<33)
       {}
+
+      Entry(Type type, int depth, int16_t score, Move<SIZE>& bestMove) :
+        Entry(type, depth, score)
+      {
+        data |= (static_cast<uint64_t>(bestMove.type())<<32) | (static_cast<uint64_t>(bestMove.idx())<<26);
+        switch(bestMove.type()) {
+        case Move<SIZE>::Type::PLACE:
+          data |= static_cast<uint8_t>(bestMove.pieceType());
+          break;
+        case Move<SIZE>::Type::MOVE: {
+          switch(bestMove.dir()) {
+          case Move<SIZE>::Dir::NORTH:
+            data |= 0<<24;
+            break;
+          case Move<SIZE>::Dir::SOUTH:
+            data |= 1<<24;
+            break;
+          case Move<SIZE>::Dir::EAST:
+            data |= 2<<24;
+            break;
+          case Move<SIZE>::Dir::WEST:
+            data |= 3<<24;
+            break;
+          }
+          data |= bestMove.range();
+          for(int i = 1; i < SIZE; i++) {
+            data |= bestMove.slides(i)<<(i*3);
+          }
+          break;
+          }
+        }
+      }
 
       Entry() : data(((uint64_t)INVALID)<<62) {}
 
@@ -52,30 +81,54 @@ private:
       }
 
       int depth() {
-        return (data&0x3FFFFFFF00000000)>>32;
+        return (data&0x3FFE000000000000)>>49;
       }
 
-      int score() {
-        return data&0x00000000FFFFFFFF;
+      Score score() {
+        return (data&0x0001FFFE00000000)>>33;
+      }
+
+      Move<SIZE> move() {
+        Move<SIZE>::Type type = (Move<SIZE>::Type)((data&0x0000000100000000)>>32);
+        uint8_t idx = (data&0x00000000FC000000) >> 26;
+        switch(type) {
+        case Move<SIZE>::Type::PLACE: {
+          Piece pieceType = (Piece)(data&0x0000000000000003);
+          return Move<SIZE>(idx, pieceType);
+          }
+        case Move<SIZE>::Type::MOVE: {
+          uint8_t slides[SIZE];
+          Move<SIZE>::Dir dir;
+          switch((data&0x0000000003000000)>>24) {
+          case 0:
+            dir = Move<SIZE>::Dir::NORTH;
+          case 1:
+            dir = Move<SIZE>::Dir::SOUTH;
+          case 2:
+            dir = Move<SIZE>::Dir::EAST;
+          case 3:
+            dir = Move<SIZE>::Dir::WEST;
+          }
+          for(int i = 0; i < SIZE; i++) {
+            slides[i] = (data>>(i*3))&0x7;
+          }
+          return Move<SIZE>(idx, dir, slides[0], &slides[1]);
+          }
+        default:
+          // Shouldn't happen
+          return Move<SIZE>();
+        }
       }
     };
 
     inline util::option<Entry> get(Board<SIZE>& b) {
       uint64_t hash = b.hash();
-      //auto e = table[hash % NUM_ENTRIES].load(std::memory_order_relaxed);
       auto& e = table[hash % NUM_ENTRIES];
       auto h = e.hash.load(std::memory_order_relaxed);
       auto d = e.data.load(std::memory_order_relaxed);
-      //auto h = e.hash;
-      //auto d = e.data;
       if((h ^ d) != hash) {
         return util::option<Entry>::None;
       } else {
-        //if(e.b != b) {
-          //std::cout << "Hash collision: " << hash << std::endl;
-          //std::cout << tps::to_str(e.b) << std::endl;
-          //std::cout << tps::to_str(b) << std::endl;
-        //}
         return util::option<Entry>(Entry(d));
       }
     }
@@ -84,8 +137,6 @@ private:
       auto ex = get(b);
       uint64_t hash = b.hash();
       if(ex && ex->depth() >= e.depth()) return;
-      //table[hash % NUM_ENTRIES] = InternalEntry { hash^e.data, e.data };
-      //table[hash % NUM_ENTRIES].store(InternalEntry { hash^e.data, e.data }, std::memory_order_relaxed);
       table[hash % NUM_ENTRIES].hash.store(hash^e.data, std::memory_order_relaxed);
       table[hash % NUM_ENTRIES].data.store(e.data, std::memory_order_relaxed);
     }
@@ -109,39 +160,21 @@ public:
     pv.resize(max_depth);
     Score score;
     std::chrono::duration<double> time_span;
-    // NO TT
-    /*
-    leaf_count = 0;
 
-    killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
-    start = std::chrono::steady_clock::now();
-
-    score = search(player, state, pv, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
-
-    end = std::chrono::steady_clock::now();
-    time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
-    std::cout << "Principal variation (no tt):";
-    for(auto move : pv) {
-      std::cout << " " << ptn::to_str(move);
-    }
-    std::cout << std::endl;
-    std::cout << leaf_count << " leafs evaluated in " << time_span.count() << "s" << std::endl;
-    std::cout << leaf_count/time_span.count() << " leafs/s" << std::endl;
-    */
-
-    // W/ TT
     hits = 0;
     leaf_count = 0;
     ttable = std::unique_ptr<TT>(new TT());
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
 
     start = std::chrono::steady_clock::now();
-    score = search(player, state, pv, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
+    score = search(player, state, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
     end = std::chrono::steady_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
-    std::cout << "Principal variation (w/ tt):";
-    for(auto move : pv) {
-      std::cout << " " << ptn::to_str(move);
+    auto entry = ttable->get(state);
+    if(entry) {
+      bestMove = entry->move();
+    } else {
+      std::cout << "Error, couldn't find best move!";
     }
     ttable.reset();
     std::cout << std::endl;
@@ -151,12 +184,10 @@ public:
 
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
 
-    bestMove = pv[0];
-
     return score;
   }
 
-  Score search(uint8_t p, Board<SIZE>& state, std::vector<Move<SIZE>>& pv, int max_depth, int depth, Score alpha, Score beta) {
+  Score search(uint8_t p, Board<SIZE>& state, int max_depth, int depth, Score alpha, Score beta) {
     using Entry = typename TT::Entry;
     Score init_alpha = alpha;
     if(ttable) {
@@ -168,10 +199,8 @@ public:
           return e->score();
         case Entry::BETA:
           alpha = util::max(alpha, e->score());
-          //if(e->score() >= beta) return e->score();
           break;
         case Entry::ALPHA:
-          //if(e->score() <= alpha) return e->score();
           beta = util::min(beta, e->score());
           break;
         default:
@@ -231,19 +260,19 @@ public:
       }
 
       Score bestScore = Evaluator::MIN;
+      Move<SIZE> bestMove;
       std::vector<Move<SIZE>> line;
       line.resize(max_depth-depth-1);
       for(int i = 0; i < numMoves; i++) {
         Move<SIZE>& m = moves[i].m;
         Board<SIZE> check = state;
         check.execute(m);
-        Score score = -search(p == WHITE ? BLACK : WHITE, check, line, max_depth, depth+1, -beta, -alpha);
+        Score score = -search(p == WHITE ? BLACK : WHITE, check, max_depth, depth+1, -beta, -alpha);
         if(depth == 0) std::cout << "Considered move " << ptn::to_str(m) << " with score " << score << std::endl;
 
         if(score > bestScore) {
           bestScore = score;
-          pv[0] = m;
-          std::copy(line.begin(), line.end(), pv.begin()+1);
+          bestMove = m;
         }
         alpha = util::max(alpha, score);
 
@@ -258,7 +287,7 @@ public:
             }
           }
 
-          if(ttable) ttable->put(state, Entry(Entry::BETA, depth, bestScore));
+          if(ttable) ttable->put(state, Entry(Entry::BETA, depth, bestScore, bestMove));
           return bestScore;
         }
 
@@ -271,9 +300,9 @@ public:
 
       if(ttable) {
         if(bestScore > init_alpha) {
-          ttable->put(state, Entry(Entry::EXACT, depth, bestScore));
+          ttable->put(state, Entry(Entry::EXACT, depth, bestScore, bestMove));
         } else {
-          ttable->put(state, Entry(Entry::ALPHA, depth, bestScore));
+          ttable->put(state, Entry(Entry::ALPHA, depth, bestScore, bestMove));
         }
       }
       return bestScore;

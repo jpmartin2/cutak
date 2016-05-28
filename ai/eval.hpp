@@ -4,13 +4,13 @@
 #include <random>
 
 struct Eval {
-  using Score = int32_t;
+  using Score = int16_t;
 
   enum S : Score {
-    MIN = -(1<<30),
-    MAX = (1<<30),
-    LOSS = -(1<<29),
-    WIN = 1<<29,
+    MIN = -32767,
+    MAX = 32767,
+    LOSS = -16384,
+    WIN = 16384,
   };
 
   static std::mt19937 generator;
@@ -103,7 +103,10 @@ struct Eval {
       influence += adj_ally-adj_enemy;
     }
 
-    return influence*25 + (top_flats+adj_flats/2)*400 + flats*100 + caps*50 - captured_penalty*100;
+    Score s = influence*25 + (top_flats+adj_flats/2)*400 + flats*100 + caps*50 - captured_penalty*100;
+    if(s >= WIN) s = WIN-1;
+    if(s <= LOSS) s = LOSS+1;
+    return s;
   }
 
   template<uint8_t SIZE>
