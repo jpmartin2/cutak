@@ -107,3 +107,8 @@ CUDA_CALLABLE inline bool operator==(Move<SIZE>& left, Move<SIZE>& right) {
     return true;
   }
 }
+
+template<uint8_t SIZE>
+CUDA_CALLABLE inline bool operator!=(Move<SIZE>& left, Move<SIZE>& right) {
+  return !(left == right);
+}

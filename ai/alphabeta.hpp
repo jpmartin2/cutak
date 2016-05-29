@@ -24,6 +24,8 @@ private:
     struct InternalEntry {
       std::atomic<uint64_t> hash;
       std::atomic<uint64_t> data;
+
+      InternalEntry() : hash(0), data(0) {}
     };
 
     std::array<InternalEntry, NUM_ENTRIES> table;
@@ -35,11 +37,11 @@ private:
       Entry(uint64_t data) : data(data) {}
     public:
       enum Type : uint8_t {
-        INVALID = 0, ALPHA, BETA, EXACT,
+        INVALID = 0, ALPHA = 1, BETA = 2, EXACT = 3,
       };
 
       Entry(Type type, int depth, int16_t score) :
-        data((((uint64_t)type)<<62) | (((uint64_t)depth)<<49) | ((uint64_t)score)<<33)
+        data((((uint64_t)type&0x3)<<62) | (((uint64_t)depth&0x1FFF)<<49) | ((uint64_t)score&0xFFFF)<<33)
       {}
 
       Entry(Type type, int depth, int16_t score, Move<SIZE>& bestMove) :
@@ -53,16 +55,16 @@ private:
         case Move<SIZE>::Type::MOVE: {
           switch(bestMove.dir()) {
           case Move<SIZE>::Dir::NORTH:
-            data |= 0<<24;
+            data |= static_cast<uint64_t>(0)<<24;
             break;
           case Move<SIZE>::Dir::SOUTH:
-            data |= 1<<24;
+            data |= static_cast<uint64_t>(1)<<24;
             break;
           case Move<SIZE>::Dir::EAST:
-            data |= 2<<24;
+            data |= static_cast<uint64_t>(2)<<24;
             break;
           case Move<SIZE>::Dir::WEST:
-            data |= 3<<24;
+            data |= static_cast<uint64_t>(3)<<24;
             break;
           }
           data |= bestMove.range();
@@ -102,12 +104,16 @@ private:
           switch((data&0x0000000003000000)>>24) {
           case 0:
             dir = Move<SIZE>::Dir::NORTH;
+            break;
           case 1:
             dir = Move<SIZE>::Dir::SOUTH;
+            break;
           case 2:
             dir = Move<SIZE>::Dir::EAST;
+            break;
           case 3:
             dir = Move<SIZE>::Dir::WEST;
+            break;
           }
           for(int i = 0; i < SIZE; i++) {
             slides[i] = (data>>(i*3))&0x7;
@@ -115,6 +121,7 @@ private:
           return Move<SIZE>(idx, dir, slides[0], &slides[1]);
           }
         default:
+          std::cout << "Error: invalid move from hash table" << std::endl;
           // Shouldn't happen
           return Move<SIZE>();
         }
@@ -126,7 +133,7 @@ private:
       auto& e = table[hash % NUM_ENTRIES];
       auto h = e.hash.load(std::memory_order_relaxed);
       auto d = e.data.load(std::memory_order_relaxed);
-      if((h ^ d) != hash) {
+      if(Entry(d).type() == Entry::INVALID || (h ^ d) != hash) {
         return util::option<Entry>::None;
       } else {
         return util::option<Entry>(Entry(d));
@@ -134,9 +141,11 @@ private:
     }
 
     inline void put(Board<SIZE>& b, Entry e) {
-      auto ex = get(b);
       uint64_t hash = b.hash();
-      if(ex && ex->depth() >= e.depth()) return;
+      // Always replace for now because of MTD-f
+      // (we need root node to update the best move!)
+      //auto ex = get(b);
+      //if(ex && ex->depth() >= e.depth()) return;
       table[hash % NUM_ENTRIES].hash.store(hash^e.data, std::memory_order_relaxed);
       table[hash % NUM_ENTRIES].data.store(e.data, std::memory_order_relaxed);
     }
@@ -156,9 +165,6 @@ public:
   alphabeta(uint8_t player) : player(player) {}
 
   Score search(Board<SIZE>& state, Move<SIZE>& bestMove, int max_depth) {
-    std::vector<Move<SIZE>> pv;
-    pv.resize(max_depth);
-    Score score;
     std::chrono::duration<double> time_span;
 
     hits = 0;
@@ -167,62 +173,85 @@ public:
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
 
     start = std::chrono::steady_clock::now();
-    score = search(player, state, max_depth, 0, Evaluator::MIN, Evaluator::MAX);
+
+    Score score = 0;
+    Score lastScore = 0;
+
+    for(int d = 1; d <= max_depth; d++) {
+      Score t = lastScore;
+      lastScore = score;
+      //score = mtdf(player, score, state, d);
+      score = mtdf(player, bestMove, t, state, d);
+      auto entry = ttable->get(state);
+      if(entry) {
+        std::cout << "Best move for depth "<<d<<" "<<ptn::to_str(entry->move())<< std::endl;
+      } else {
+        std::cout << "Couldn't get move for depth " << d << std::endl;
+      }
+    }
+
     end = std::chrono::steady_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
-    auto entry = ttable->get(state);
-    if(entry) {
-      bestMove = entry->move();
-    } else {
-      std::cout << "Error, couldn't find best move!";
-    }
     ttable.reset();
     std::cout << std::endl;
     std::cout << leaf_count << " leafs evaluated in " << time_span.count() << "s" << std::endl;
     std::cout << leaf_count/time_span.count() << " leafs/s" << std::endl;
     std::cout << "Hits: " << hits << std::endl;
 
-    killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
-
     return score;
   }
 
-  Score search(uint8_t p, Board<SIZE>& state, int max_depth, int depth, Score alpha, Score beta) {
+  Score mtdf(uint8_t p, Move<SIZE>& bestMove, Score guess, Board<SIZE>& state, int max_depth) {
+    Score upperBound = Evaluator::MAX, lowerBound = Evaluator::MIN;
+    while(lowerBound < upperBound) {
+      Score beta = util::max<Score>(guess, lowerBound+1);
+      guess = negamax(p, state, bestMove, max_depth, beta-1, beta);
+      if(guess < beta) upperBound = guess;
+      else lowerBound = guess;
+    }
+
+    return guess;
+  }
+
+  Score negamax(uint8_t p, Board<SIZE>& state, Move<SIZE>& bestMove, int depth, Score alpha, Score beta) {
     using Entry = typename TT::Entry;
     Score init_alpha = alpha;
     if(ttable) {
       auto e = ttable->get(state);
-      if(e && e->depth() <= depth) {
+      if(e && e->depth() >= depth) {
         hits++;
         switch(e->type()) {
         case Entry::EXACT:
           return e->score();
         case Entry::BETA:
           alpha = util::max(alpha, e->score());
+          if(alpha >= beta) {
+            return e->score();
+          }
           break;
         case Entry::ALPHA:
           beta = util::min(beta, e->score());
+          if(alpha >= beta) {
+            return e->score();
+          }
           break;
         default:
           break;
         }
         hits--;
-        if(alpha >= beta) {
-          return e->score();
-        }
       }
     }
 
-    if(depth == max_depth) leaf_count++;
+    if(depth == 0) leaf_count++;
     GameStatus status = state.status();
 
     if(status.over) {
-      int s = status.winner == p ? Evaluator::WIN+(max_depth-depth) : Evaluator::LOSS-(max_depth-depth);
+      int s = status.winner == p ? Evaluator::WIN+depth : Evaluator::LOSS-depth;
       if(ttable) ttable->put(state, Entry(Entry::EXACT, depth, s));
       return s;
     }
 
-    if(depth == max_depth) {
+    if(depth == 0) {
       int s = Evaluator::eval(state, p);
       if(ttable) ttable->put(state, Entry(Entry::EXACT, depth, s));
       return s;
@@ -260,15 +289,13 @@ public:
       }
 
       Score bestScore = Evaluator::MIN;
-      Move<SIZE> bestMove;
-      std::vector<Move<SIZE>> line;
-      line.resize(max_depth-depth-1);
+      //Move<SIZE> bestMove;
       for(int i = 0; i < numMoves; i++) {
         Move<SIZE>& m = moves[i].m;
         Board<SIZE> check = state;
         check.execute(m);
-        Score score = -search(p == WHITE ? BLACK : WHITE, check, max_depth, depth+1, -beta, -alpha);
-        if(depth == 0) std::cout << "Considered move " << ptn::to_str(m) << " with score " << score << std::endl;
+        Move<SIZE> bm;
+        Score score = -negamax(p == WHITE ? BLACK : WHITE, check, bm, depth-1, -beta, -alpha);
 
         if(score > bestScore) {
           bestScore = score;
@@ -287,14 +314,10 @@ public:
             }
           }
 
-          if(ttable) ttable->put(state, Entry(Entry::BETA, depth, bestScore, bestMove));
+          if(ttable) {
+            ttable->put(state, Entry(Entry::BETA, depth, bestScore, bestMove));
+          }
           return bestScore;
-        }
-
-        // Once we find a 1 ply win, we can stop searching
-        // since we can't do better
-        if(bestScore == Evaluator::WIN+max_depth) {
-          break;
         }
       }
 
