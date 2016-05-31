@@ -225,7 +225,7 @@ private:
   virtual void visit(Board<N>& board) { \
     int id = game_id; \
     std::thread([this, board, id] () mutable { \
-      alphabeta<N, Eval> ab(my_color); \
+      alphabeta<N, Eval> ab; \
       Move<N> move; \
       alphabeta<N, Eval>::Score score = ab.search(board, move, max_depth); \
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl; \

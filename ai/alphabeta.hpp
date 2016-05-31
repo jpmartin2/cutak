@@ -91,16 +91,16 @@ private:
       }
 
       Move<SIZE> move() {
-        Move<SIZE>::Type type = (Move<SIZE>::Type)((data&0x0000000100000000)>>32);
+        typename Move<SIZE>::Type t = (typename Move<SIZE>::Type)((data&0x0000000100000000)>>32);
         uint8_t idx = (data&0x00000000FC000000) >> 26;
-        switch(type) {
+        switch(t) {
         case Move<SIZE>::Type::PLACE: {
           Piece pieceType = (Piece)(data&0x0000000000000003);
           return Move<SIZE>(idx, pieceType);
           }
         case Move<SIZE>::Type::MOVE: {
           uint8_t slides[SIZE];
-          Move<SIZE>::Dir dir;
+          typename Move<SIZE>::Dir dir;
           switch((data&0x0000000003000000)>>24) {
           case 0:
             dir = Move<SIZE>::Dir::NORTH;
@@ -160,10 +160,7 @@ private:
   std::chrono::steady_clock::time_point start;
   std::chrono::steady_clock::time_point end;
   int leaf_count;
-  uint8_t player;
 public:
-  alphabeta(uint8_t player) : player(player) {}
-
   Score search(Board<SIZE>& state, Move<SIZE>& bestMove, int max_depth) {
     std::chrono::duration<double> time_span;
 
@@ -180,8 +177,7 @@ public:
     for(int d = 1; d <= max_depth; d++) {
       Score t = lastScore;
       lastScore = score;
-      //score = mtdf(player, score, state, d);
-      score = mtdf(player, bestMove, t, state, d);
+      score = mtdf(bestMove, t, state, d);
       auto entry = ttable->get(state);
       if(entry) {
         std::cout << "Best move for depth "<<d<<" "<<ptn::to_str(entry->move())<< std::endl;
@@ -201,11 +197,11 @@ public:
     return score;
   }
 
-  Score mtdf(uint8_t p, Move<SIZE>& bestMove, Score guess, Board<SIZE>& state, int max_depth) {
+  Score mtdf(Move<SIZE>& bestMove, Score guess, Board<SIZE>& state, int max_depth) {
     Score upperBound = Evaluator::MAX, lowerBound = Evaluator::MIN;
     while(lowerBound < upperBound) {
       Score beta = util::max<Score>(guess, lowerBound+1);
-      guess = negamax(p, state, bestMove, max_depth, beta-1, beta);
+      guess = negamax(state, bestMove, max_depth, beta-1, beta);
       if(guess < beta) upperBound = guess;
       else lowerBound = guess;
     }
@@ -213,7 +209,7 @@ public:
     return guess;
   }
 
-  Score negamax(uint8_t p, Board<SIZE>& state, Move<SIZE>& bestMove, int depth, Score alpha, Score beta) {
+  Score negamax(Board<SIZE>& state, Move<SIZE>& bestMove, int depth, Score alpha, Score beta) {
     using Entry = typename TT::Entry;
     Score init_alpha = alpha;
     if(ttable) {
@@ -246,13 +242,13 @@ public:
     GameStatus status = state.status();
 
     if(status.over) {
-      int s = status.winner == p ? Evaluator::WIN+depth : Evaluator::LOSS-depth;
+      int s = status.winner == state.curPlayer ? Evaluator::WIN+depth : Evaluator::LOSS-depth;
       if(ttable) ttable->put(state, Entry(Entry::EXACT, depth, s));
       return s;
     }
 
     if(depth == 0) {
-      int s = Evaluator::eval(state, p);
+      int s = Evaluator::eval(state, state.curPlayer);
       if(ttable) ttable->put(state, Entry(Entry::EXACT, depth, s));
       return s;
     } else {
@@ -295,7 +291,7 @@ public:
         Board<SIZE> check = state;
         check.execute(m);
         Move<SIZE> bm;
-        Score score = -negamax(p == WHITE ? BLACK : WHITE, check, bm, depth-1, -beta, -alpha);
+        Score score = -negamax(check, bm, depth-1, -beta, -alpha);
 
         if(score > bestScore) {
           bestScore = score;
