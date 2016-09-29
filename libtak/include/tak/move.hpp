@@ -29,31 +29,31 @@ public:
   CUDA_CALLABLE inline Move(uint8_t idx, Dir dir, uint8_t range, uint8_t slides[SIZE-1]) :
     idx_(idx), type_(Type::MOVE), data(dir, range, slides) {}
 
-  CUDA_CALLABLE inline uint8_t idx() { return idx_; }
-  CUDA_CALLABLE inline Type type() { return type_; }
+  CUDA_CALLABLE inline uint8_t idx() const { return idx_; }
+  CUDA_CALLABLE inline Type type() const { return type_; }
 
   /**
    * If this move is a PLACE, check the piece type to be placed.
    */
-  CUDA_CALLABLE inline Piece pieceType() { return data.placement.pieceType; }
+  CUDA_CALLABLE inline Piece pieceType() const { return data.placement.pieceType; }
 
   /**
    * If this move is a MOVE, check the direction to move in
    **/
-  CUDA_CALLABLE inline Dir dir() { return data.movement.dir; }
+  CUDA_CALLABLE inline Dir dir() const { return data.movement.dir; }
 
   /**
    * If this move is a MOVE, check number of tile this move covers.
    * I.e., the max distance from the source tile pieces will end up
    * as a result of this move.
    */
-  CUDA_CALLABLE inline uint8_t range() { return data.movement.range; }
+  CUDA_CALLABLE inline uint8_t range() const { return data.movement.range; }
 
   /**
    * If this move is a MOVE, gets the number of pieces to be placed n
    * tiles from the source tile.
    */
-  CUDA_CALLABLE inline uint8_t slides(int n) { return data.movement.slides[n-1]; }
+  CUDA_CALLABLE inline uint8_t slides(int n) const { return data.movement.slides[n-1]; }
 
   CUDA_CALLABLE inline Piece& undo() { return data.movement.undo; }
 private:

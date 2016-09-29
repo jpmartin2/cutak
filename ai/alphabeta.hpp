@@ -41,11 +41,11 @@ private:
       };
 
       Entry(Type type, int depth, int16_t score) :
-        data((((uint64_t)type&0x3)<<62) | (((uint64_t)depth&0x1FFF)<<49) | ((uint64_t)score&0xFFFF)<<33)
+        Entry(type, depth, score, Move<SIZE>(0, Piece::INVALID))
       {}
 
-      Entry(Type type, int depth, int16_t score, Move<SIZE>& bestMove) :
-        Entry(type, depth, score)
+      Entry(Type type, int depth, int16_t score, const Move<SIZE>& bestMove) :
+        data((((uint64_t)type&0x3)<<62) | (((uint64_t)depth&0x1FFF)<<49) | ((uint64_t)score&0xFFFF)<<33)
       {
         data |= (static_cast<uint64_t>(bestMove.type())<<32) | (static_cast<uint64_t>(bestMove.idx())<<26);
         switch(bestMove.type()) {
@@ -153,20 +153,26 @@ private:
 
   int hits;
 
-  using TT = TranspositionTable<(1<<25)>;
+  //using TT = TranspositionTable<(1<<25)>;
+  using TT = TranspositionTable<(1<<18)>;
   std::unique_ptr<TT> ttable;
 
   std::vector<KillerMove<2>> killer_moves;
   std::chrono::steady_clock::time_point start;
   std::chrono::steady_clock::time_point end;
   int leaf_count;
+
+  const static int NULL_MOVE_REDUCTION = 3;
 public:
   Score search(Board<SIZE>& state, Move<SIZE>& bestMove, int max_depth) {
     std::chrono::duration<double> time_span;
 
     hits = 0;
     leaf_count = 0;
-    ttable = std::unique_ptr<TT>(new TT());
+    if(!ttable) {
+      std::cout << "Recreating ttable" << std::endl;
+      ttable = std::unique_ptr<TT>(new TT());
+    }
     killer_moves = std::vector<KillerMove<2>>(max_depth+1, {Move<SIZE>(), Move<SIZE>(), Evaluator::MIN, Evaluator::MIN});
 
     start = std::chrono::steady_clock::now();
@@ -186,9 +192,26 @@ public:
       }
     }
 
+    Move<SIZE> move;
+    Board<SIZE> state_copy = state;
+    while(true) {
+      auto e = ttable->get(state_copy);
+      if(e) {
+        move = e->move();
+        if(!(move.type() == Move<SIZE>::Type::PLACE && move.pieceType() == Piece::INVALID)) {
+          std::cout << ptn::to_str(move) << " ";
+          state_copy.execute(move);
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+    std::cout << std::endl;
+
     end = std::chrono::steady_clock::now();
     time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end-start);
-    ttable.reset();
     std::cout << std::endl;
     std::cout << leaf_count << " leafs evaluated in " << time_span.count() << "s" << std::endl;
     std::cout << leaf_count/time_span.count() << " leafs/s" << std::endl;
@@ -201,7 +224,7 @@ public:
     Score upperBound = Evaluator::MAX, lowerBound = Evaluator::MIN;
     while(lowerBound < upperBound) {
       Score beta = util::max<Score>(guess, lowerBound+1);
-      guess = negamax(state, bestMove, max_depth, beta-1, beta);
+      guess = negamax(state, bestMove, 0, max_depth, beta-1, beta);
       if(guess < beta) upperBound = guess;
       else lowerBound = guess;
     }
@@ -209,11 +232,12 @@ public:
     return guess;
   }
 
-  Score negamax(Board<SIZE>& state, Move<SIZE>& bestMove, int depth, Score alpha, Score beta) {
+  Score negamax(Board<SIZE>& state, Move<SIZE>& bestMove, int ply, int depth, Score alpha, Score beta) {
     using Entry = typename TT::Entry;
     Score init_alpha = alpha;
+    util::option<Entry> e;
     if(ttable) {
-      auto e = ttable->get(state);
+      e = ttable->get(state);
       if(e && e->depth() >= depth) {
         hits++;
         switch(e->type()) {
@@ -238,7 +262,7 @@ public:
       }
     }
 
-    if(depth == 0) leaf_count++;
+    if(depth <= 0) leaf_count++;
     GameStatus status = state.status();
 
     if(status.over) {
@@ -247,7 +271,10 @@ public:
       return s;
     }
 
-    if(depth == 0) {
+    if(depth <= 0) {
+      if(depth < 0) {
+        std::cout << "Error: depth " << depth << std::endl;
+      }
       int s = Evaluator::eval(state, state.curPlayer);
       if(ttable) ttable->put(state, Entry(Entry::EXACT, depth, s));
       return s;
@@ -259,7 +286,15 @@ public:
         int s;
       };
 
-      auto score_move = [this,depth](Move<SIZE>& m) {
+      bool nullCutoff = false;
+
+      util::option<Move<SIZE>> hash_move;
+      if(e) {
+        hash_move = e->move();
+      }
+
+      auto score_move = [this,depth,&hash_move](Move<SIZE>& m) {
+        if(hash_move && *hash_move == m) return 2;
         for(auto move : killer_moves[depth].moves) {
           if(move == m) return 1;
         }
@@ -291,7 +326,7 @@ public:
         Board<SIZE> check = state;
         check.execute(m);
         Move<SIZE> bm;
-        Score score = -negamax(check, bm, depth-1, -beta, -alpha);
+        Score score = -negamax(check, bm, ply+1, depth-1, -beta, -alpha);
 
         if(score > bestScore) {
           bestScore = score;
@@ -327,4 +362,102 @@ public:
       return bestScore;
     }
   }
+
+  bool nullOK(int depth, Board<SIZE>& state) {
+    //if(depth < NULL_MOVE_REDUCTION+1) return false;
+    if(state.white.flats < 4 || state.black.flats < 4) return false;
+    return true;
+  }
 };
+
+/*
+template<typename... T>
+class ExtensionList;
+
+template<>
+class ExtensionList<> {
+  void search() {}
+  void expand() {}
+  void eval() {}
+  void update() {}
+  void ret() {}
+};
+
+template<typename T1, typename... T>
+class ExtensionList<T1, T...> {
+  T1& t1;
+  ExtensionList<T...> rest;
+
+  void search() {
+    t1.search();
+    rest.search();
+  }
+
+  void expand() {
+    t1.expand();
+    rest.expand();
+  }
+
+  void eval() {
+    t1.eval();
+    rest.eval();
+  }
+
+  void update() {
+    t1.update();
+    rest.update();
+  }
+
+  void ret() {
+    t1.ret();
+    rest.ret();
+  }
+};
+
+template<typename... Extensions>
+class Negamax {
+public:
+private:
+  struct Node {
+    Score alpha, beta;
+    enum class State {
+      SEARCH, EXPAND, EVAL, UPDATE, RETURN,
+    } state;
+  };
+
+  std::vector<Node> nodes;
+  ExtensionList<Extensions...> extensions;
+
+  inline void search(Node& node) {
+    extensions.search();
+  }
+
+  inline void expand(Node& node) {
+  }
+
+  Score search(Game& g) {
+    while(nodes.size() > 0) {
+      Node& node = nodes.back();
+      switch(node.state) {
+      case SEARCH:
+        search(node);
+        break;
+      case EXPAND:
+        expand(node);
+        break;
+      case EVAL:
+        eval(node);
+        break;
+      case UPDATE:
+        update(node);
+        break;
+      case RETURN:
+        ret(node);
+        break;
+      }
+
+      nodes.pop();
+    }
+  }
+};
+*/

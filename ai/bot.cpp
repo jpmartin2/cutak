@@ -32,7 +32,7 @@ public:
 private:
 
   void seek() {
-    send_msg_io(ClientMsg::seek(5, 1800, 0, WHITE));
+    //send_msg_io(ClientMsg::seek(5, 1800, 0, WHITE));
   }
 
   virtual void error_msg(std::string msg) {
@@ -98,13 +98,11 @@ private:
   }
 
   virtual void seek_new_msg(Seek seek) {
-    /*
     static bool played = false;
-    if(!played && seek.player == "TakticianBot") {
+    if(!played && seek.player == "alphatak_bot") {
       send_msg_io(ClientMsg::accept(seek.id));
       played = true;
     }
-    */
     seeks.insert(seek);
   }
 
@@ -225,7 +223,7 @@ private:
   virtual void visit(Board<N>& board) { \
     int id = game_id; \
     std::thread([this, board, id] () mutable { \
-      alphabeta<N, Eval> ab; \
+      static alphabeta<N, Eval> ab; \
       Move<N> move; \
       alphabeta<N, Eval>::Score score = ab.search(board, move, max_depth); \
       std::cout << "Best move: " << ptn::to_str(move) << " with score " << score << std::endl; \
